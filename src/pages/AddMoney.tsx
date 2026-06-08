@@ -1,5 +1,5 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { ArrowLeft, Copy, Building2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Copy, Building2, Loader2, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,6 +12,7 @@ export default function AddMoney() {
   const { profile, user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -21,7 +22,7 @@ export default function AddMoney() {
     });
   };
 
-  const createVirtualAccount = async () => {
+  const createVirtualAccount = async (force = false) => {
     console.log('[AddMoney] createVirtualAccount called, user:', !!user, 'profile:', !!profile);
     if (!user || !profile) {
       console.error('[AddMoney] Missing user or profile, cannot create virtual account');
@@ -33,7 +34,8 @@ export default function AddMoney() {
       return;
     }
 
-    setIsCreatingAccount(true);
+    if (force) setIsRegenerating(true);
+    else setIsCreatingAccount(true);
     try {
       // Sanitize phone number
       let phone = (profile.phone || "").replace(/[\s\-()]/g, "");
@@ -49,6 +51,7 @@ export default function AddMoney() {
           email: profile.email || user.email,
           name: profile.full_name,
           phoneNumber: phone,
+          force,
         },
       });
 
@@ -65,7 +68,7 @@ export default function AddMoney() {
       if (data?.success) {
         toast({
           title: 'Success!',
-          description: `Virtual account created: ${data.accountNumber}`,
+          description: force ? 'Account number regenerated.' : `Virtual account created: ${data.accountNumber}`,
         });
         // Refresh profile to get the new account number
         await refreshProfile();
@@ -85,6 +88,7 @@ export default function AddMoney() {
       });
     } finally {
       setIsCreatingAccount(false);
+      setIsRegenerating(false);
     }
   };
 
@@ -167,6 +171,28 @@ export default function AddMoney() {
                     </Button>
                   </div>
                 </div>
+
+                <Button
+                  variant="outline"
+                  onClick={() => createVirtualAccount(true)}
+                  disabled={isRegenerating}
+                  className="w-full"
+                >
+                  {isRegenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Regenerating...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Regenerate Account Number
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Having issues with your account number? Tap above to regenerate it.
+                </p>
               </div>
             ) : (
               <div className="text-center py-6">
@@ -174,7 +200,7 @@ export default function AddMoney() {
                   You don't have a virtual account yet. Create one to receive payments.
                 </p>
                 <Button 
-                  onClick={createVirtualAccount} 
+                  onClick={() => createVirtualAccount(false)}
                   disabled={isCreatingAccount}
                   className="w-full"
                 >
