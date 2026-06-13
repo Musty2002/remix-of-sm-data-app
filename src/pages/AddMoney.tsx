@@ -68,7 +68,7 @@ export default function AddMoney() {
       if (data?.success) {
         toast({
           title: 'Success!',
-          description: force ? 'Account number regenerated.' : `Virtual account created: ${data.accountNumber}`,
+          description: `Virtual account created: ${data.accountNumber}`,
         });
         // Refresh profile to get the new account number
         await refreshProfile();
@@ -124,12 +124,30 @@ export default function AddMoney() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Bank Name</p>
-                      <p className="font-semibold text-foreground">PalmPay</p>
+                       <p className="font-semibold text-foreground">
+                         {(() => {
+                           const name = profile?.virtual_account_name || "";
+                           const b = profile?.virtual_account_bank || "Paga";
+                           // Aspfiy-provisioned accounts always display as "Paga - Aspfiy",
+                           // regardless of the underlying settlement bank (PalmPay, 9PSB, etc.)
+                           const isAspfiy =
+                             name.toLowerCase().startsWith("aspfiy") ||
+                             ["paga", "palmpay"].includes(b.toLowerCase());
+                           return isAspfiy ? "Paga - Aspfiy" : b;
+                         })()}
+                       </p>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => copyToClipboard('PalmPay', 'Bank name')}
+                       onClick={() => {
+                         const name = profile?.virtual_account_name || "";
+                         const b = profile?.virtual_account_bank || "Paga";
+                         const isAspfiy =
+                           name.toLowerCase().startsWith("aspfiy") ||
+                           ["paga", "palmpay"].includes(b.toLowerCase());
+                         copyToClipboard(isAspfiy ? "Paga - Aspfiy" : b, "Bank name");
+                       }}
                     >
                       <Copy className="w-4 h-4" />
                     </Button>
