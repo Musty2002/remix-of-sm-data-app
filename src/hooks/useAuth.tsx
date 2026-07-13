@@ -170,7 +170,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     name: string,
     phoneNumber: string,
-    maxRetries = 3
+    maxRetries = 3,
+    force = false
   ): Promise<void> => {
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
     
@@ -187,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log(`Creating virtual account (attempt ${attempt + 1}/${maxRetries}), phone: ${sanitizedPhone}...`);
         
         const { data: vaData, error: vaError } = await supabase.functions.invoke('create-virtual-account', {
-          body: { userId, email, name, phoneNumber: sanitizedPhone }
+          body: { userId, email, name, phoneNumber: sanitizedPhone, force }
         });
         
         if (vaError) {
@@ -240,19 +241,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: prof } = await supabase
         .from('profiles')
-        .select('virtual_account_name, full_name, phone, email')
+        .select('virtual_account_name, virtual_account_bank, full_name, phone, email')
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (!prof || !prof.virtual_account_name) {
+      const bank = (prof?.virtual_account_bank || '').toLowerCase();
+      const isPalmPay = bank.includes('palmpay');
+      const missing = !prof || !prof.virtual_account_name;
+
+      if (missing || !isPalmPay) {
         const currentUser = authenticatedUser || session?.user || user;
         const metadata = currentUser?.user_metadata || {};
-        console.log(prof ? 'Existing user missing virtual account, creating...' : 'User profile missing, initializing account...');
+        console.log(missing ? 'User missing virtual account, provisioning PalmPay...' : 'Migrating user to PalmPay virtual account...');
         createVirtualAccountWithRetry(
           userId,
           prof?.email || currentUser?.email || '',
           prof?.full_name || metadata.full_name || 'User',
-          prof?.phone || metadata.phone || ''
+          prof?.phone || metadata.phone || '',
+          3,
+          !missing // force regenerate for existing aspfiy users
         );
       }
     } catch (err) {
