@@ -25,7 +25,8 @@ interface DataService {
   name: string;
   category: string;
   available: boolean;
-  provider?: 'rgc';
+  provider?: 'rgc' | 'bonanza';
+  validity?: string | null;
 }
 
 type Step = 'network' | 'category' | 'plan' | 'confirm';
@@ -91,6 +92,12 @@ export default function Data() {
     fetchDataBundles();
   }, []);
 
+  // Prefill last used phone number
+  useEffect(() => {
+    const saved = localStorage.getItem('lastDataPhone');
+    if (saved) setPhoneNumber(saved);
+  }, []);
+
   const fetchDataBundles = async () => {
     try {
       setLoading(true);
@@ -123,8 +130,8 @@ export default function Data() {
         
         // Only add if not already in map (first one wins - avoids duplicates)
         if (!bundlesMap.has(dedupKey)) {
-          const provider: 'rgc' = 'rgc';
-          
+          const provider = (bundle.provider === 'bonanza' ? 'bonanza' : 'rgc') as 'rgc' | 'bonanza';
+
           bundlesMap.set(dedupKey, {
             id: parseInt(bundle.plan_code) || 0,
             product_id: parseInt(bundle.plan_code) || 0,
@@ -133,7 +140,8 @@ export default function Data() {
             amount: String(bundle.app_price),
             category: bundle.data_type,
             available: bundle.is_active ?? true,
-            provider
+            provider,
+            validity: bundle.validity ?? null,
           });
         }
       });
@@ -178,10 +186,10 @@ export default function Data() {
         return;
       }
       // Route to appropriate provider based on bundle provider
-      const provider = 'rgc';
-      const functionName = 'rgc-services';
-      
-      console.log('Purchasing via RGC provider');
+      const provider = selectedBundle.provider || 'rgc';
+      const functionName = provider === 'bonanza' ? 'bonanza-services' : 'rgc-services';
+
+      console.log(`Purchasing via ${provider} provider`);
 
       // Build request body based on provider
       const requestBody: any = {
@@ -191,6 +199,7 @@ export default function Data() {
         plan_name: selectedBundle.name,
         mobile_number: phoneNumber,
         amount: parseFloat(selectedBundle.amount),
+        network: selectedNetwork,
       };
 
       const { data, error } = await supabase.functions.invoke(functionName, {
@@ -215,9 +224,8 @@ export default function Data() {
         type: 'data',
         dataPlan: selectedBundle.name,
       });
+      try { localStorage.setItem('lastDataPhone', phoneNumber); } catch {}
       setShowReceipt(true);
-      
-      setPhoneNumber('');
       setSelectedBundle(null);
       setSelectedCategory(null);
       setSelectedNetwork(null);
