@@ -41,6 +41,7 @@ import Support from "./pages/Support";
 import Settings from "./pages/Settings";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import Receipt from "./pages/Receipt";
 
 
 // Admin Pages
@@ -227,6 +228,7 @@ function AppRoutes() {
       <Route path="/cashback" element={<ProtectedRoute><Cashback /></ProtectedRoute>} />
       <Route path="/exam-pin" element={<ProtectedRoute><ExamPin /></ProtectedRoute>} />
       <Route path="/reseller-promo" element={<ProtectedRoute><ResellerPromo /></ProtectedRoute>} />
+      <Route path="/receipt/:transactionId" element={<ProtectedRoute><Receipt /></ProtectedRoute>} />
       <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
       <Route path="/security" element={<ProtectedRoute><Security /></ProtectedRoute>} />
       <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
