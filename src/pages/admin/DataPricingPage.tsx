@@ -62,7 +62,8 @@ interface APIDataBundle {
   name: string;
   category: string;
   available: boolean;
-  provider: 'rgc';
+  provider: 'rgc' | 'bonanza';
+  validity?: string;
 }
 
 const networks = [
@@ -74,6 +75,7 @@ const networks = [
 
 const providers = [
   { code: 'rgc', name: 'RGC' },
+  { code: 'bonanza', name: 'Bonanza' },
 ];
 
 export default function DataPricingPage() {
@@ -93,6 +95,7 @@ export default function DataPricingPage() {
     validity: '',
     api_price: 0,
     app_price: 0,
+    provider: 'rgc' as 'rgc' | 'bonanza',
   });
   const [selectedForImport, setSelectedForImport] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'database' | 'api'>('api');
@@ -111,17 +114,39 @@ export default function DataPricingPage() {
   const fetchFromAPI = async () => {
     setSyncing(true);
     try {
-      const rgcResponse = await supabase.functions.invoke('rgc-services', {
-        body: { action: 'get-services', serviceType: 'data' }
-      });
+      const [rgcResponse, bonanzaResponse] = await Promise.all([
+        supabase.functions.invoke('rgc-services', {
+          body: { action: 'get-services', serviceType: 'data' }
+        }).catch((e) => ({ data: null, error: e })),
+        supabase.functions.invoke('bonanza-services', {
+          body: { action: 'get-services', serviceType: 'data' }
+        }).catch((e) => ({ data: null, error: e })),
+      ]);
 
       let bundles: APIDataBundle[] = [];
 
-      if (rgcResponse.data?.success && rgcResponse.data?.data) {
+      if (rgcResponse?.data?.success && rgcResponse.data?.data) {
         const rgcBundles = rgcResponse.data.data
           .filter((b: APIDataBundle) => b.available)
           .map((b: APIDataBundle) => ({ ...b, provider: 'rgc' as const }));
         bundles = [...bundles, ...rgcBundles];
+      }
+
+      if (bonanzaResponse?.data?.success && Array.isArray(bonanzaResponse.data?.data)) {
+        const bonanzaBundles = bonanzaResponse.data.data
+          .filter((b: any) => b.available !== false)
+          .map((b: any) => ({
+            id: b.id,
+            product_id: b.product_id || b.id,
+            service: b.service || 'DATA',
+            amount: String(b.amount),
+            name: b.name,
+            category: b.category,
+            available: true,
+            provider: 'bonanza' as const,
+            validity: b.validity,
+          }));
+        bundles = [...bundles, ...bonanzaBundles];
       }
 
       setApiBundles(bundles);
@@ -261,6 +286,7 @@ export default function DataPricingPage() {
             .update({
               api_price: apiPrice,
               plan_name: bundle.name,
+              validity: bundle.validity ?? null,
             })
             .eq('id', existing.id);
         } else {
@@ -272,6 +298,7 @@ export default function DataPricingPage() {
               data_type: bundle.category,
               plan_code: bundle.id.toString(),
               plan_name: bundle.name,
+              validity: bundle.validity ?? null,
               api_price: apiPrice,
               app_price: apiPrice, // Default to API price, admin can adjust
               is_active: true,
@@ -368,7 +395,7 @@ export default function DataPricingPage() {
 
       toast.success('Bundle added successfully');
       setAddDialogOpen(false);
-      setNewBundle({ plan_code: '', plan_name: '', validity: '', api_price: 0, app_price: 0 });
+      setNewBundle({ plan_code: '', plan_name: '', validity: '', api_price: 0, app_price: 0, provider: 'rgc' });
       fetchBundles();
     } catch (error: any) {
       console.error('Error adding bundle:', error);
@@ -597,6 +624,22 @@ export default function DataPricingPage() {
                           placeholder="e.g., 30 days"
                         />
                       </div>
+                      <div>
+                        <Label>Provider</Label>
+                        <Select
+                          value={newBundle.provider}
+                          onValueChange={(v) => setNewBundle(prev => ({ ...prev, provider: v as 'rgc' | 'bonanza' }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {providers.map(p => (
+                              <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label>API Price (₦)</Label>
@@ -699,7 +742,7 @@ export default function DataPricingPage() {
                           {formatPrice(parseFloat(bundle.amount))}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">RGC</Badge>
+                          <Badge variant="secondary">{(bundle.provider || 'rgc').toUpperCase()}</Badge>
                         </TableCell>
                         <TableCell>
                           {bundle.available ? (
@@ -751,6 +794,7 @@ export default function DataPricingPage() {
                     <TableRow>
                       <TableHead>Plan Code</TableHead>
                       <TableHead>Plan Name</TableHead>
+                      <TableHead>Validity</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Provider</TableHead>
                       <TableHead>API Price (₦)</TableHead>
@@ -769,12 +813,26 @@ export default function DataPricingPage() {
                       return (
                         <TableRow key={bundle.id} className={editedItems[bundle.id] ? 'bg-yellow-50' : ''}>
                           <TableCell className="font-mono text-sm">{bundle.plan_code}</TableCell>
-                          <TableCell className="font-medium">{bundle.plan_name}</TableCell>
+                          <TableCell className="font-medium">
+                            <Input
+                              className="w-40"
+                              value={(getDisplayValue(bundle, 'plan_name') as string) ?? ''}
+                              onChange={(e) => handleChange(bundle.id, 'plan_name', e.target.value)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              className="w-28"
+                              value={(getDisplayValue(bundle, 'validity') as string) ?? ''}
+                              onChange={(e) => handleChange(bundle.id, 'validity', e.target.value)}
+                              placeholder="e.g. 30 days"
+                            />
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline">{bundle.data_type}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary">RGC</Badge>
+                            <Badge variant="secondary">{(bundle.provider || 'rgc').toUpperCase()}</Badge>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {formatPrice(bundle.api_price)}
