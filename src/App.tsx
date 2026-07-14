@@ -53,6 +53,7 @@ import TransactionsPage from "./pages/admin/TransactionsPage";
 import NotificationsAdmin from "./pages/admin/NotificationsAdmin";
 import PricingConfig from "./pages/admin/PricingConfig";
 import DataPricingPage from "./pages/admin/DataPricingPage";
+import ProfitDashboard from "./pages/admin/ProfitDashboard";
 import TopResellersPage from "./pages/admin/TopResellersPage";
 import WalletsPage from "./pages/admin/WalletsPage";
 import ReferralsPage from "./pages/admin/ReferralsPage";
@@ -260,6 +261,7 @@ function AdminRoutes() {
         <Route path="notifications" element={<NotificationsAdmin />} />
         <Route path="pricing" element={<PricingConfig />} />
         <Route path="data-pricing" element={<DataPricingPage />} />
+        <Route path="profit" element={<ProfitDashboard />} />
         <Route path="wallets" element={<WalletsPage />} />
         <Route path="referrals" element={<ReferralsPage />} />
         <Route path="promo-banners" element={<PromoBannersPage />} />
