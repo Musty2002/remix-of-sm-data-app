@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   ChevronLeft,
-  Trophy
+  Trophy,
+  TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ const navItems = [
   { to: '/admin/top-resellers', icon: Trophy, label: 'Top Resellers' },
   { to: '/admin/notifications', icon: Bell, label: 'Notifications' },
   { to: '/admin/data-pricing', icon: DollarSign, label: 'Data Pricing' },
+  { to: '/admin/profit', icon: TrendingUp, label: 'Profit & Reports' },
   { to: '/admin/wallets', icon: Wallet, label: 'Wallets' },
   { to: '/admin/referrals', icon: Gift, label: 'Referrals' },
   { to: '/admin/promo-banners', icon: Image, label: 'Promo Banners' },
